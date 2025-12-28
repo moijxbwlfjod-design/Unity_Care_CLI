@@ -130,6 +130,22 @@ do{
                 }
             } while($input != 6);
             break;
+
+        case $input == 4:
+            do{
+                echo "1. Calculer le moyen d'age des patients.\n2. Calculer le moyen des années de service des médcin.\n3. Afficher les departements les plus populaires.\n4. Afficher combien de doctor dans chaque departement.\n5. Quitter.\n";
+                $input = readline("Entrer votre choix: ");
+                switch($input){
+                    case $input == 1:
+                        $patients->calculateAverageAge($conn_result);
+                        break;
+                    case $input == 2:
+                        $doctors->calculateAverageServiseYears($conn_result);
+                        break;
+                    default:
+                        echo "Essai un autre choix\n";
+                }
+            }while($input != 5);
         default:
             echo "Essai un autre choix\n";
     }

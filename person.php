@@ -1,5 +1,6 @@
 <?php
 require_once('config.php');
+require_once("validation.php");
 class Person{
     protected $firstName;
     protected $lastName;
@@ -37,20 +38,22 @@ class Person{
     }
 
     function findPerson($pdo,$who, $firstName, $lastName){
-        if($who == "patient"){
+        if($who == "patient" && Validator::isNotEmpty($firstName) && Validator::isNotEmpty($lastName)){
             $sql = 'select * from patient where firstName = ? and lastName = ?';
             $m = $pdo->prepare($sql);
             $m->execute(array($firstName, $lastName));
             $result = $m->fetch(PDO::FETCH_ASSOC);
             echo "\nID   |   First Name   |   Last Name   |   Gender   |   Date Of Birth   |   Phone   |   Email   |   Address\n";
             echo "----------------------------------------------------------------------------------------------------------\n\n";
-        } else if($who == "doctor"){
+        } else if($who == "doctor" && Validator::isNotEmpty($firstName) && Validator::isNotEmpty($lastName)){
             $sql = 'select * from doctor where firstName = ? and lastName = ?';
             $m = $pdo->prepare($sql);
             $m->execute(array($firstName, $lastName));
             $result = $m->fetch(PDO::FETCH_ASSOC);
             echo "\nID   |   First Name   |   Last Name   |   Specialization   |   Phone   |   Email   |   Departement ID\n";
             echo "-----------------------------------------------------------------------------------------------------\n\n";
+        } else{
+            echo "Entrer une data qu'est valide.\n";
         }
         if(!empty($result)){
             foreach($result as $key => $value){
@@ -92,7 +95,7 @@ class Patient extends Person{
     }
     
     function addPatient($pdo, $fname, $lname, $gender, $date, $phone, $email, $addr){
-        if (!empty($fname) && !empty($lname) && !empty($gender) && !empty($date) && !empty($phone) && !empty($email) && !empty($addr)){
+        if (!empty($fname) && !empty($lname) && !empty($gender) && !empty($date) && !empty($phone) && !empty($email) && !empty($addr) && Validator::phoneValidator($phone) && Validator::dateValidator($date)){
             $sql = "insert into patient (firstName, lastName, gender, dateOfBirth, phoneNum, email, address) values (?, ?, ?, ?, ?, ?, ?)";
             $m = $pdo->prepare($sql);
             $m->execute(array($fname, $lname, $gender, $date, $phone, $email, $addr));
@@ -110,9 +113,24 @@ class Patient extends Person{
             $new_phone = readline("Entrer le Numero de télephone: ");
             $new_email = readline("Entrer l'Email: ");
             $new_addr = readline("Entrer l\'Address: ");
-            $sql = "update patient set firstName = ?, lastName = ?, gender = ?, dateOfBirth = ?, phoneNum = ?, email = ?, address = ? where id = ?";
-            $m = $pdo->prepare($sql);
-            $m->execute(array($new_fname, $new_lname, $new_gender, $new_date, $new_phone, $new_email, $new_addr, $id));
+            if (!empty($fname) && !empty($lname) && !empty($gender) && !empty($date) && !empty($phone) && !empty($email) && !empty($addr) && Validator::phoneValidator($phone) && Validator::dateValidator($date)){
+                $sql = "update patient set firstName = ?, lastName = ?, gender = ?, dateOfBirth = ?, phoneNum = ?, email = ?, address = ? where id = ?";
+                $m = $pdo->prepare($sql);
+                $m->execute(array($new_fname, $new_lname, $new_gender, $new_date, $new_phone, $new_email, $new_addr, $id));
+            } else{
+                echo "Entrer une data qu'est valide.\n";
+            }
+        }
+    }
+
+    function calculateAverageAge($pdo){
+        try{
+            $sql = "SELECT ROUND(AVG(TIMESTAMPDATE(YEAR, dateOfBirth, CURDATE()), 2) AS Average FROM patient";
+            $m = $pdo->query($sql);
+            $result = $m->fetch(PDO::FETCH_ASSOC);
+            echo "L'age moyen des patients est: " . $result['Average'] . " ans" ."\n\n";
+        }catch(Exception $e){
+            echo "Error: $e";
         }
     }
 }
@@ -140,7 +158,7 @@ class Doctor extends Person{
     }
 
     function addDoctor($pdo, $fname, $lname, $spe, $phone, $email ,$dep_id){
-        if (!empty($fname) && !empty($lname) && !empty($spe) && !empty($phone) && !empty($email) && !empty($dep_id) && filter_var($dep_id, FILTER_VALIDATE_INT)){
+        if (!empty($fname) && !empty($lname) && !empty($spe) && !empty($phone) && !empty($email) && !empty($dep_id) && filter_var($dep_id, FILTER_VALIDATE_INT) && Validator::phoneValidator($phone)){
             try{
                 $sql = "insert into doctor (firstName, lastName, specialization, phoneNum, email, departement_id) values (?, ?, ?, ?, ?, ?)";
                 $m = $pdo->prepare($sql);
@@ -155,7 +173,7 @@ class Doctor extends Person{
     }
 
     function updateDoctor($pdo,$id, $fname, $lname, $spe, $phone, $email ,$dep_id){
-        if (!empty($id) && filter_var($id, FILTER_VALIDATE_INT) && !empty($fname) && !empty($lname) && !empty($spe) && !empty($phone) && !empty($email) && !empty($dep_id) && filter_var($dep_id, FILTER_VALIDATE_INT)){
+        if (!empty($id) && filter_var($id, FILTER_VALIDATE_INT) && !empty($fname) && !empty($lname) && !empty($spe) && !empty($phone) && !empty($email) && !empty($dep_id) && filter_var($dep_id, FILTER_VALIDATE_INT) && Validator::phoneValidator($phone)){
             try{
                 $sql = "update doctor set firstName = ?, lastName = ?, specialization = ?, phoneNum = ?, email = ?, departement_id = ? where id = ?";
                 $m = $pdo->prepare($sql);
@@ -166,6 +184,17 @@ class Doctor extends Person{
             }
         } else{
             echo "Entrer une data qu'est valide.\n\n";
+        }
+    }
+
+    function calculateAverageServiseYears($pdo){
+        try{
+            $sql = "SELECT round(avg(case when suspensionDate = 'En cours' then timestampdiff(year, hiringDate, curdate()) else timestampdiff(year, hiringDate, suspensionDate) end), 2) as average from doctor";
+            $m = $pdo->query($sql);
+            $result = $m->fetch(PDO::FETCH_ASSOC);
+            echo "Le moyen des années de services des médcins est: ".$result['average']." ans"."\n\n";
+        } catch(Exception $e){
+            echo "Error: $e";
         }
     }
 }
